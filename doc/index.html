@@ -1,0 +1,1088 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <title>pthrlib documentation index</title>
+    <style type="text/css"><!--
+      h1 {
+      text-align: center;
+      }
+      pre {
+      background-color: #eeeeff;
+      }
+      code {
+      color: green;
+      font-weight: bold;
+      }
+      --></style>
+  </head>
+
+  <body bgcolor="#ffffff">
+    <h1>pthrlib documentation index</h1>
+
+    <p>
+      <code>pthrlib</code> is a library for writing small, fast
+      and efficient servers in C. It offers a list of advanced
+      features. This library has been used to write a
+      <a href="http://www.annexia.org/freeware/rws/">very
+      tiny and fast web server called rws</a> and a closed
+      source chat server.
+    </p>
+
+    <p>
+      The primary aims of <code>pthrlib</code> are:
+    </p>
+
+    <ul>
+      <li> Be very simple to use.
+      <li> Provide rich functionality for C programmers out of the box.
+      <li> Meticulous attention paid to the number of syscalls
+	issued and the efficiency of those syscalls, so typically
+	a <code>pthrlib</code> server will outperform any other
+	server architecture or language (on non-SMP).
+      <li> Tiny memory footprint for running servers.
+      <li> Cooperative threading reduces the danger and agony
+	of thread programming.
+      <li> Use of <code>c2lib</code> removes many risks of
+	buffer overflows.
+    </ul>
+
+    <h2>Tutorial and programming examples</h2>
+
+    <p>
+      At the heart of <code>pthrlib</code> is a threading
+      library called <q><b>pseudothreads</b></q>. This library
+      is a typical lightweight threading library, written
+      from scratch to be as small and fast as possible (it
+      therefore lacks many of the unnecessary features
+      which complicate other lightweight threading libraries,
+      such as the ability to suspend threads).
+    </p>
+
+    <p>
+      A small <code>pthrlib</code> server will start off
+      with just a single listener thread, listening for
+      new connections on a socket. When connections come
+      in, a new thread is spun off to handle it:
+    </p>
+
+    <table border="1">
+      <tr> <td> listener thread </td> </tr>
+      <tr> <td> processing thread, connected to client #1 </td> </tr>
+      <tr> <td> processing thread, connected to client #2 </td> </tr>
+      <tr> <td> processing thread, connected to client #3 </td> </tr>
+      <tr> <td align="center"> ... </td> </tr>
+    </table>
+
+    <p>
+      More complex <code>pthrlib</code> servers may contain
+      several core threads: for example our closed-source
+      chat server has one extra thread called <code>autoannounce</code>
+      which periodically sends out announcement messages to
+      all clients. They may also use more than one thread
+      per client. Since threads are very lightweight, you
+      should be able to create as many threads as necessary
+      for your application.
+    </p>
+
+    <h3>Simple <q>echo</q> server</h3>
+
+    <p>
+      To help you create a server with a listener thread
+      spinning off threads for each incoming connection,
+      there is a helper function called <code>pthr_server_main_loop(3)</code>.
+      Almost all programs will want to use it, such as the
+      following simple <q>echo</q> program (I have split
+      the program into chunks for readability).
+    </p>
+
+    <p>
+      Standard includes for socket programs, and predeclare
+      static functions:
+    </p>
+
+<pre>
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;sys/socket.h&gt;
+
+#include &lt;pool.h&gt;
+
+#include &lt;pthr_pseudothread.h&gt;
+#include &lt;pthr_iolib.h&gt;
+#include &lt;pthr_server.h&gt;
+
+static void start_processor (int sock, void *data);
+static void run (void *);
+</pre>
+
+    <p>
+      Recall from the diagram above that we will start one
+      processing thread for each client. The following structure
+      is used to store the per-thread information about that
+      processing thread:
+    </p>
+
+<pre>
+typedef struct processor_thread
+{
+  pseudothread pth;		/* Pseudothread handle. */
+  int sock;			/* Socket. */
+} *processor_thread;
+</pre>
+
+    <p>
+      <code>main</code> is very simple, since
+      <code>pthr_server_main_loop</code> does all the hard work
+      of opening up a listening socket, forking into the
+      background, parsing command line arguments and so on.
+      Note that we pass a pointer to our
+      <code>start_processor</code> function.
+    </p>
+
+<pre>
+int
+main (int argc, char *argv[])
+{
+  /* Start up the server. */
+  pthr_server_main_loop (argc, argv, start_processor);
+
+  exit (0);
+}
+</pre>
+
+    <p>
+      Whenever a client makes a new connection to our server,
+      the listener thread is going to call <code>start_processor</code>.
+      This creates allocates the per-thread data structure
+      and starts the new thread. The <code>run</code>
+      function is the actual new processing thread running.
+    </p>
+
+<pre>
+static void
+start_processor (int sock, void *data)
+{
+  pool pool;
+  processor_thread p;
+
+  pool = new_pool ();
+  p = pmalloc (pool, sizeof *p);
+
+  p-&gt;sock = sock;
+  p-&gt;pth = new_pseudothread (pool, run, p, "processor thread");
+
+  pth_start (p-&gt;pth);
+}
+
+static void
+run (void *vp)
+{
+  processor_thread p = (processor_thread) vp;
+  io_handle io;
+  char buffer[256];
+
+  io = io_fdopen (p-&gt;sock);
+
+  /* Sit in a loop reading strings and echoing them back. */
+  while (io_fgets (buffer, sizeof buffer, io, 1))
+    io_fputs (buffer, io);
+
+  io_fclose (io);
+
+  pth_exit ();
+}
+</pre>
+
+    <p>
+      Here is a typical run with this program (what I
+      typed is shown in <b>bold text</b>):
+    </p>
+
+<pre>
+$ <b>./eg_echo -p 9000</b>
+$ <b>telnet localhost 9000</b>
+Trying 127.0.0.1...
+Connected to localhost.localnet (127.0.0.1).
+Escape character is '^]'.
+<b>hello</b>
+hello
+<b>goodbye</b>
+goodbye
+<b>^]</b>
+
+telnet> <b>quit</b>
+Connection closed.
+</pre>
+
+    <h3>Simple HTTP server</h3>
+
+    <p>
+      <b>Note:</b> Although it is possible to write complete
+      mini webservers using just <code>pthrlib</code>, it is
+      often more flexible and just as fast to use
+      <a href="http://www.annexia.org/freeware/rws/">rws's</a>
+      shared object scripts. <code>rws</code> provides you
+      with the complete web serving framework. If you don't
+      use <code>rws</code> and you need to, say, serve an
+      image or a static page at some point in your application,
+      then you will need to either link to another web server
+      like Apache, or else write your own static file service
+      code (it can be done -- we did it for the chat server --
+      but it's unnecessary).
+    </p>
+
+    <p>
+      The following code comes from example 1 supplied with
+      <code>pthrlib</code>. You can find the working code
+      in the <code>examples/</code> directory. I have omitted
+      some parts of the code in order to concentrate on the
+      interesting and relevant bits.
+    </p>
+
+    <p>
+      First of all, the <code>main</code> function:
+    </p>
+
+<pre>
+static void start_processor (int sock, void *);
+
+int
+main (int argc, char *argv[])
+{
+  /* Start up the server. */
+  pthr_server_main_loop (argc, argv, start_processor);
+
+  exit (0);
+}
+
+static void
+start_processor (int sock, void *data)
+{
+  (void) new_eg1_echo_processor (sock);
+}
+</pre>
+
+    <p>
+      Again, we are using <code>pthr_server_main_loop</code> to
+      do the hard work. <code>start_processor</code> starts the
+      processor thread. The processor thread's <code>run</code>
+      function has the following outline:
+    </p>
+
+<pre>
+static void
+run (void *vp)
+{
+  eg1_echo_processor p = (eg1_echo_processor) vp;
+  int close = 0;
+  io_handle io;
+
+  io = io_fdopen (p-&gt;sock);
+
+  /* Sit in a loop reading HTTP requests. */
+  while (!close)
+    {
+      /* Parse the HTTP request. */
+            :    :    :
+            :    :    :
+
+      /* Form the HTTP response. */
+            :    :    :
+            :    :    :
+    }
+
+  io_fclose (io);
+
+  pth_exit ();
+}
+</pre>
+
+    <p>
+      The purpose of this loop is to deal with HTTP keepalives,
+      where a client (or perhaps many different clients through a
+      proxy) makes a series of requests over the same TCP connection.
+      For each request, we'll make an iteration of the <code>while</code>
+      loop. Each request is independent of the previous one.
+    </p>
+
+    <p>
+      At the beginning of the thread, the listening thread hands us
+      a socket file descriptor in <code>sock</code>. Doing I/O directly
+      on a file descriptor is inconvenient, and it can't be
+      wrapped up directly in a <code>stdio</code> <code>FILE *</code>
+      because these block, hanging the entire process (and all other
+      threads). <code>iolib</code> is a replacement for <code>stdio</code>
+      which works with pools and doesn't block. <code>io_fdopen</code>
+      wraps up a file descriptor in a full buffered <code>io_handle</code>.
+    </p>
+
+    <p>
+      Now lets look at the step which parses the HTTP request:
+    </p>
+
+<pre>
+  http_request http_request;
+  cgi cgi;
+  pool pool = pth_get_pool (p-&gt;pth);
+            :    :    :
+            :    :    :
+
+      /* ----- HTTP request ----- */
+      http_request = new_http_request (pool, io);
+      if (http_request == 0)	/* Normal end of file. */
+        break;
+
+      cgi = new_cgi (pool, http_request, io);
+      if (cgi == 0)		/* XXX Should send an error here. */
+	break;
+</pre>
+
+    <p>
+      The <code>new_http_request</code> function parses the
+      HTTP headers. It does pretty much the equivalent of what
+      Apache does just before it hands off to a normal CGI script.
+      You can think of <code>new_cgi</code> as being somewhat
+      equivalent to Perl's <code>CGI.pm</code>.
+    </p>
+
+    <p>
+      Here's the code which generates the HTTP response:
+    </p>
+
+<pre>
+  http_response http_response;
+            :    :    :
+            :    :    :
+
+      http_response = new_http_response (pool, http_request,
+					 io,
+					 200, "OK");
+      http_response_send_header (http_response,
+                                 "Content-Type", "text/plain");
+      close = http_response_end_headers (http_response);
+
+      if (!http_request_is_HEAD (http_request))
+	{
+	  io_fprintf (io, "Hello. This is your server.\r\n\r\n");
+	  io_fprintf (io, "Your browser sent the following headers:\r\n");
+
+	  headers = http_request_get_headers (http_request);
+	  for (i = 0; i &lt; vector_size (headers); ++i)
+	    {
+	      vector_get (headers, i, header);
+	      io_fprintf (io, "\t%s: %s\r\n", header.key, header.value);
+	    }
+
+	  io_fprintf (io, "----- end of headers -----\r\n");
+
+	  io_fprintf (io, "The URL was: %s\r\n",
+		      http_request_get_url (http_request));
+	  io_fprintf (io, "The path component was: %s\r\n",
+		      http_request_path (http_request));
+	  io_fprintf (io, "The query string was: %s\r\n",
+		      http_request_query_string (http_request));
+	  io_fprintf (io, "The query arguments were:\r\n");
+
+	  params = cgi_params (cgi);
+	  for (i = 0; i &lt; vector_size (params); ++i)
+	    {
+	      vector_get (params, i, name);
+	      value = cgi_param (cgi, name);
+	      io_fprintf (io, "\t%s=%s\r\n", name, value);
+	    }
+
+	  io_fprintf (io, "----- end of parameters -----\r\n");
+	}
+</pre>
+
+    <p>
+      <code>new_http_response</code>,
+      <code>http_response_send_header</code> and
+      <code>http_response_end_headers</code> generates the
+      HTTP headers for the response back to the client. We'll
+      see those headers in a minute.
+      Notice that we send back an explicit
+      <code>Content-Type: text/plain</code>
+      header.
+    </p>
+
+    <p>
+      The rest of the code actually generates the page. The
+      simplest way to describe it is to show an actual interaction
+      with the server. What I typed is shown in <b>bold text</b>.
+    </p>
+
+<pre>
+$ <b>./pthr_eg1_echo -p 9000</b>
+$ <b>telnet localhost 9000</b>
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+<b>GET /path/here?abc=123&amp;def=456 HTTP/1.0</b>
+<b>Host: localhost:9000</b>
+
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Server: pthrlib-httpd/3.0.3
+Date: Fri, 30 Aug 2002 17:04:03 GMT
+Connection: close
+
+Hello. This is your server.
+
+Your browser sent the following headers:
+        host: localhost:9000
+----- end of headers -----
+The URL was: /path/here?abc=123&amp;def=456
+The path component was: /path/here
+The query string was: abc=123&amp;def=456
+The query arguments were:
+        abc=123
+        def=456
+----- end of parameters -----
+Connection closed by foreign host.
+</pre>
+
+    <h3>Static file webserver</h3>
+
+    <p>
+      This following code is from example 2. You can find
+      the complete working program in the <code>examples/</code>
+      directory. It's a very minimal webserver which can
+      only serve static files from a single directory. If
+      you start the server up as <code>root</code>, then
+      the server will <code>chroot(2)</code> itself into
+      a configurable directory, and change its user ID to
+      <code>nobody.nobody</code>
+    </p>
+
+    <p>
+      Again the <code>main</code> function uses
+      <code>pthr_server_main_loop</code> for simplicity.
+      However one thing which <code>pthr_server_main_loop</code>
+      can't do (yet) is set up signal handlers, so we have
+      to do those by hand first:
+    </p>
+
+<pre>
+int
+main (int argc, char *argv[])
+{
+  struct sigaction sa;
+
+  /* Intercept signals. */
+  memset (&amp;sa, 0, sizeof sa);
+  sa.sa_handler = catch_quit_signal;
+  sa.sa_flags = SA_RESTART;
+  sigaction (SIGINT, &amp;sa, 0);
+  sigaction (SIGQUIT, &amp;sa, 0);
+  sigaction (SIGTERM, &amp;sa, 0);
+
+  /* ... but ignore SIGPIPE errors. */
+  sa.sa_handler = SIG_IGN;
+  sa.sa_flags = SA_RESTART;
+  sigaction (SIGPIPE, &amp;sa, 0);
+
+  /* Start up the server. */
+  pthr_server_chroot (root);
+  pthr_server_username (user);
+  pthr_server_main_loop (argc, argv, start_processor);
+
+  exit (0);
+}
+
+static void
+start_processor (int sock, void *data)
+{
+  (void) new_eg2_server_processor (sock);
+}
+
+static void
+catch_quit_signal (int sig)
+{
+  exit (0);
+}
+</pre>
+
+    <p>
+      Notice that just before we actually call
+      <code>pthr_server_main_loop</code>, we configure
+      the main loop code first by telling it the
+      root directory (where we want to <code>chroot(2)</code>
+      to) and the username (<code>nobody</code>).
+    </p>
+
+    <p>
+      The <code>eg2_server_processor</code> thread
+      structure contains a little more data this time. It
+      contains most of the information about the current
+      request:
+    </p>
+
+<pre>
+struct eg2_server_processor
+{
+  /* Pseudothread handle. */
+  pseudothread pth;
+
+  /* Socket. */
+  int sock;
+
+  /* Pool for memory allocations. */
+  struct pool *pool;
+
+  /* HTTP request. */
+  http_request http_request;
+
+  /* IO handle. */
+  io_handle io;
+};
+</pre>
+
+    <p>
+      The <code>run</code> function has the same basic outline,
+      ie. a <code>while</code> loop to process each request on
+      the same keep-alive connection, and a call to
+      <code>new_http_request</code> to parse the HTTP headers. The
+      outline code is shown in <span style="color: red">red text</span>
+      below. The code to handle the response is shown in
+      black.
+    </p>
+
+<pre>
+<span style="color: red">static void
+run (void *vp)
+{
+  eg2_server_processor p = (eg2_server_processor) vp;
+  int close = 0;
+  const char *path;
+  struct stat statbuf;
+
+  p-&gt;io = io_fdopen (p-&gt;sock);
+
+  /* Sit in a loop reading HTTP requests. */
+  while (!close)
+    {
+      /* ----- HTTP request ----- */
+      p-&gt;http_request = new_http_request (pool, p-&gt;io);
+      if (p-&gt;http_request == 0)	/* Normal end of file. */
+        break;</span>
+
+      /* Get the path and locate the file. */
+      path = http_request_path (p-&gt;http_request);
+      if (stat (path, &statbuf) == -1)
+	{
+	  close = file_not_found_error (p);
+	  continue;
+	}
+
+      /* File or directory? */
+      if (S_ISDIR (statbuf.st_mode))
+	{
+	  close = serve_directory (p, path, &statbuf);
+	  continue;
+	}
+      else if (S_ISREG (statbuf.st_mode))
+	{
+	  close = serve_file (p, path, &statbuf);
+	  continue;
+	}
+      else
+	{
+	  close = file_not_found_error (p);
+	  continue;
+	}
+    <span style="color: red">}
+
+  io_fclose (p-&gt;io);
+
+  pth_exit ();
+}</span>
+</pre>
+
+    <p>
+      This is a very simple webserver, so all it does is take the
+      <code>path</code> component of the request, and uses it directly
+      as a filename (note that it relies completely on the
+      <code>chroot(2)</code> environment for security).
+    </p>
+
+    <p>
+      Firstly it calls <code>stat</code> to find out if the filename
+      is a directory or a regular file. If it is neither, or if the
+      file doesn't exist, it calls <code>file_not_found_error</code>
+      which sends back a 404 FILE NOT FOUND error.
+    </p>
+
+    <p>
+      If the file is a regular file, we call <code>serve_file</code>,
+      which is a simple piece of code:
+    </p>
+
+<pre>
+static int
+serve_file (eg2_server_processor p, const char *path,
+	    const struct stat *statbuf)
+{
+  http_response http_response;
+  const int n = 4096;
+  char *buffer = alloca (n);
+  int cl, fd, r;
+  char *content_length = pitoa (p-&gt;pool, statbuf-&gt;st_size);
+
+  fd = open (path, O_RDONLY);
+  if (fd &lt; 0)
+    return file_not_found_error (p);
+
+  http_response = new_http_response (pool, p-&gt;http_request, p-&gt;io,
+				     200, "OK");
+  http_response_send_headers (http_response,
+			      /* Content type. */
+			      "Content-Type", "text/plain",
+			      "Content-Length", content_length,
+			      /* End of headers. */
+			      NULL);
+  cl = http_response_end_headers (http_response);
+
+  if (http_request_is_HEAD (p-&gt;http_request)) return cl;
+
+  while ((r = read (fd, buffer, n)) &gt; 0)
+    {
+      io_fwrite (buffer, r, 1, p-&gt;io);
+    }
+
+  if (r &lt; 0)
+    perror ("read");
+
+  close (fd);
+
+  return cl;
+}
+</pre>
+
+    <p>
+      Firstly we work out the size of the file, using the
+      <code>statbuf.st_size</code> field. The
+      <a href="http://www.annexia.org/freeware/c2lib/">c2lib</a>
+      function <code>pitoa</code> turns this into a string (all
+      headers must be passed as strings). Next we open the
+      file. If this fails, then the file is inaccessible or
+      has just gone, so we return a 404 instead.
+    </p>
+
+    <p>
+      Next we generate our headers:
+    </p>
+
+<pre>
+Content-Type: text/plain
+Content-Length: <i>(size of the file in octets)</i>
+</pre>
+
+    <p>
+      <code>pthrlib</code> will generate other standard
+      headers as well.
+    </p>
+
+    <p>
+      If the request was a <code>HEAD</code> request, then
+      the client only wants to see the headers, so we stop
+      right there. Otherwise we copy the file back to our
+      user.
+    </p>
+
+    <p>
+      Party question: Why is it OK to use <code>read(2)</code>
+      when reading the file, but not OK to use <code>write(2)</code>
+      when writing to the socket? Why will this <i>not</i> cause
+      the whole server process to block (on Linux at least)?
+    </p>
+
+    <p>
+      Serving a directory is more complicated, so we'll take it in
+      steps. Recall that to serve a directory, we actually need
+      to create an HTML page which lists the files, with information
+      about those files and links to the files themselves.
+    </p>
+
+    <p>
+      Firstly if the user requested the directory as:
+    </p>
+
+<pre>
+http://your.hostname/path/to/directory
+</pre>
+
+    <p>
+      then we need to redirect them to:
+    </p>
+
+<pre>
+http://your.hostname/path/to/directory<b>/</b>
+</pre>
+
+    <p>
+      (note the trailing slash). The reason for this is that
+      relative links within our page won't work otherwise. The
+      browser will request <code>/path/to/file</code> instead of
+      <code>/path/to/directory/file</code>. This is actually a
+      bit of webserver arcana which is often forgotten. If you
+      don't believe me, Apache does this too: go look at the source!
+    </p>
+
+<pre>
+static int
+serve_directory (eg2_server_processor p, const char *path,
+		 const struct stat *statbuf)
+{
+  http_response http_response;
+  int close;
+  DIR *dir;
+  struct dirent *d;
+
+  /* If the path doesn't end with a "/", then we need to send
+   * a redirect back to the client so it refetches the page
+   * with "/" appended.
+   */
+  if (path[strlen (path)-1] != '/')
+    {
+      char *location = psprintf (p-&gt;pool, "%s/", path);
+      return moved_permanently (p, location);
+    }
+</pre>
+
+    <p>
+      <code>moved_permanently</code> sends back a 301 MOVED PERMANENTLY
+      page causing the browser to re-request the new location.
+    </p>
+
+    <p>
+      The next piece of code should be familiar boilerplate. We open
+      the directory, and send back headers. If the request is
+      <code>HEAD</code> we then drop out.
+    </p>
+
+<pre>
+  dir = opendir (path);
+  if (dir == 0)
+    return file_not_found_error (p);
+
+  http_response = new_http_response (pool, p-&gt;http_request, p-&gt;io,
+				     200, "OK");
+  http_response_send_headers (http_response,
+			      /* Content type. */
+			      "Content-Type", "text/html",
+			      NO_CACHE_HEADERS,
+			      /* End of headers. */
+			      NULL);
+  close = http_response_end_headers (http_response);
+
+  if (http_request_is_HEAD (p-&gt;http_request)) return close;
+</pre>
+
+    <p>
+      The next piece of code is the complicated bit which generates
+      the HTML page listing the files:
+    </p>
+
+<pre>
+  io_fprintf (p-&gt;io,
+	      "&lt;html&gt;&lt;head&gt;&lt;title&gt;Directory: %s&lt;/title&gt;&lt;/head&gt;" CRLF
+	      "&lt;body bgcolor=\"#ffffff\"&gt;" CRLF
+	      "&lt;h1&gt;Directory: %s&lt;/h1&gt;" CRLF
+	      "&lt;table&gt;" CRLF
+	      "&lt;tr&gt;&lt;td&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;"
+	      "&lt;td&gt;&lt;a href=\"..\"&gt;Parent directory&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;" CRLF,
+	      path, path);
+
+  while ((d = readdir (dir)) != 0)
+    {
+      if (d-&gt;d_name[0] != '.')	/* Ignore hidden files. */
+	{
+	  const char *filename;
+	  struct stat fstatbuf;
+
+	  /* Generate the full pathname to this file. */
+	  filename = psprintf (p-&gt;pool, "%s/%s", path, d-&gt;d_name);
+
+	  /* Stat the file to find out what it is. */
+	  if (lstat (filename, &amp;fstatbuf) == 0)
+	    {
+	      const char *type;
+	      int size;
+
+	      if (S_ISDIR (fstatbuf.st_mode))
+		type = "dir";
+	      else if (S_ISREG (fstatbuf.st_mode))
+		type = "file";
+	      else if (S_ISLNK (fstatbuf.st_mode))
+		type = "link";
+	      else
+		type = "special";
+
+	      size = fstatbuf.st_size;
+
+	      /* Print the details. */
+	      io_fprintf (p-&gt;io,
+			  "&lt;tr&gt;&lt;td&gt;[ %s ]&lt;/td&gt;&lt;td align=right&gt;%d&lt;/td&gt;"
+			  "&lt;td&gt;&lt;a href=\"%s%s\"&gt;%s&lt;/a&gt;",
+			  type, size,
+			  d-&gt;d_name,
+			  S_ISDIR (fstatbuf.st_mode) ? "/" : "",
+			  d-&gt;d_name);
+
+	      if (S_ISLNK (fstatbuf.st_mode))
+		{
+		  char link[NAME_MAX+1];
+		  int r;
+
+		  r = readlink (filename, link, NAME_MAX);
+		  if (r &gt;= 0) link[r] = '\0';
+		  else strcpy (link, "unknown");
+
+		  io_fprintf (p-&gt;io, " -&amp;gt; %s", link);
+		}
+
+	      io_fputs ("&lt;/td&gt;&lt;/tr&gt;" CRLF, p-&gt;io);
+	    }
+	}
+    }
+
+  io_fprintf (p-&gt;io,
+	      "&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" CRLF);
+
+  return close;
+</pre>
+
+    <p>
+      We first send the top of the HTML page, and the beginning
+      of the table (the whole page is one large table, of course).
+    </p>
+
+    <p>
+      Next we loop over the directory entries using <code>readdir(3)</code>
+      to read each one. Ignoring files which start with a dot (.) we
+      <code>lstat(2)</code> each file to find out if it's a directory,
+      file or symbolic link, or some type of special device node.
+    </p>
+
+    <p>
+      Depending on the file type, we generate a different bit
+      of HTML containing a relative link to the file or
+      directory (if it's a directory we need to remember to
+      append a trailing slash to the name to avoid that extra
+      301 redirect).
+    </p>
+
+    <p>
+      Finally after we reach the end of the directory we finish
+      of the table and the page and return.
+    </p>
+
+    <h2>Further examples</h2>
+
+    <p>
+      That's the end of this <code>pthrlib</code> tutorial, I
+      hope you enjoyed it.
+    </p>
+
+    <p>
+      <code>pthrlib</code> isn't just about writing web servers.
+      You can use it to write all sorts of types of servers,
+      or even clients (it has an FTP client library which I
+      used to load-test <code>Net::FTPServer</code>).
+    </p>
+
+    <p>
+      If, however, you feel like using <code>pthrlib</code> to
+      write a web server, I strongly urge you to use
+      <a href="http://www.annexia.org/freeware/rws/">rws</a>
+      and shared object scripts. These are described in
+      the <a href="http://www.annexia.org/freeware/rws/doc/">rws
+	documentation</a>. (rws uses <code>pthrlib</code>).
+    </p>
+
+    <h2>Links to manual pages</h2>
+
+    <p>
+      (These manual pages are not always up to date. For the
+      latest documentation, always consult the manual pages
+      supplied with the latest <code>pthrlib</code> package!)
+    </p>
+
+    <h3>Pseudothreads</h3>
+
+    <ul>
+      <li> <a href="new_pseudothread.3.html"><code>new_pseudothread(3)</code></a> </li>
+      <li> <a href="pseudothread_count_threads.3.html"><code>pseudothread_count_threads(3)</code></a> </li>
+      <li> <a href="pseudothread_get_stack_size.3.html"><code>pseudothread_get_stack_size(3)</code></a> </li>
+      <li> <a href="pseudothread_get_threads.3.html"><code>pseudothread_get_threads(3)</code></a> </li>
+      <li> <a href="pseudothread_set_stack_size.3.html"><code>pseudothread_set_stack_size(3)</code></a> </li>
+      <li> <a href="pth_accept.3.html"><code>pth_accept(3)</code></a> </li>
+      <li> <a href="pth_catch.3.html"><code>pth_catch(3)</code></a> </li>
+      <li> <a href="pth_connect.3.html"><code>pth_connect(3)</code></a> </li>
+      <li> <a href="pth_die.3.html"><code>pth_die(3)</code></a> </li>
+      <li> <a href="pth_exit.3.html"><code>pth_exit(3)</code></a> </li>
+      <li> <a href="pth_get_data.3.html"><code>pth_get_data(3)</code></a> </li>
+      <li> <a href="pth_get_language.3.html"><code>pth_get_language(3)</code></a> </li>
+      <li> <a href="pth_get_name.3.html"><code>pth_get_name(3)</code></a> </li>
+      <li> <a href="pth_get_PC.3.html"><code>pth_get_PC(3)</code></a> </li>
+      <li> <a href="pth_get_pool.3.html"><code>pth_get_pool(3)</code></a> </li>
+      <li> <a href="pth_get_run.3.html"><code>pth_get_run(3)</code></a> </li>
+      <li> <a href="pth_get_SP.3.html"><code>pth_get_SP(3)</code></a> </li>
+      <li> <a href="pth_get_stack.3.html"><code>pth_get_stack(3)</code></a> </li>
+      <li> <a href="pth_get_stack_size.3.html"><code>pth_get_stack_size(3)</code></a> </li>
+      <li> <a href="pth_get_thread_num.3.html"><code>pth_get_thread_num(3)</code></a> </li>
+      <li> <a href="pth_get_tz.3.html"><code>pth_get_tz(3)</code></a> </li>
+      <li> <a href="pth_millisleep.3.html"><code>pth_millisleep(3)</code></a> </li>
+      <li> <a href="pth_nanosleep.3.html"><code>pth_nanosleep(3)</code></a> </li>
+      <li> <a href="pth_poll.3.html"><code>pth_poll(3)</code></a> </li>
+      <li> <a href="pth_read.3.html"><code>pth_read(3)</code></a> </li>
+      <li> <a href="pth_recv.3.html"><code>pth_recv(3)</code></a> </li>
+      <li> <a href="pth_recvfrom.3.html"><code>pth_recvfrom(3)</code></a> </li>
+      <li> <a href="pth_recvmsg.3.html"><code>pth_recvmsg(3)</code></a> </li>
+      <li> <a href="pth_select.3.html"><code>pth_select(3)</code></a> </li>
+      <li> <a href="pth_send.3.html"><code>pth_send(3)</code></a> </li>
+      <li> <a href="pth_sendmsg.3.html"><code>pth_sendmsg(3)</code></a> </li>
+      <li> <a href="pth_sendto.3.html"><code>pth_sendto(3)</code></a> </li>
+      <li> <a href="pth_set_language.3.html"><code>pth_set_language(3)</code></a> </li>
+      <li> <a href="pth_set_name.3.html"><code>pth_set_name(3)</code></a> </li>
+      <li> <a href="pth_set_tz.3.html"><code>pth_set_tz(3)</code></a> </li>
+      <li> <a href="pth_sleep.3.html"><code>pth_sleep(3)</code></a> </li>
+      <li> <a href="pth_start.3.html"><code>pth_start(3)</code></a> </li>
+      <li> <a href="pth_timeout.3.html"><code>pth_timeout(3)</code></a> </li>
+      <li> <a href="pth_write.3.html"><code>pth_write(3)</code></a> </li>
+    </ul>
+
+    <h3>Server main loop</h3>
+
+    <ul>
+      <li> <a href="pthr_server_main_loop.3.html"><code>pthr_server_main_loop(3)</code></a> </li>
+      <li> <a href="pthr_server_default_port.3.html"><code>pthr_server_default_port(3)</code></a> </li>
+      <li> <a href="pthr_server_port_option_name.3.html"><code>pthr_server_port_option_name(3)</code></a> </li>
+      <li> <a href="pthr_server_disable_syslog.3.html"><code>pthr_server_disable_syslog(3)</code></a> </li>
+      <li> <a href="pthr_server_package_name.3.html"><code>pthr_server_package_name(3)</code></a> </li>
+      <li> <a href="pthr_server_disable_fork.3.html"><code>pthr_server_disable_fork(3)</code></a> </li>
+      <li> <a href="pthr_server_disable_chdir.3.html"><code>pthr_server_disable_chdir(3)</code></a> </li>
+      <li> <a href="pthr_server_disable_close.3.html"><code>pthr_server_disable_close(3)</code></a> </li>
+      <li> <a href="pthr_server_chroot.3.html"><code>pthr_server_chroot(3)</code></a> </li>
+      <li> <a href="pthr_server_username.3.html"><code>pthr_server_username(3)</code></a> </li>
+      <li> <a href="pthr_server_stderr_file.3.html"><code>pthr_server_stderr_file(3)</code></a> </li>
+      <li> <a href="pthr_server_startup_fn.3.html"><code>pthr_server_startup_fn(3)</code></a> </li>
+    </ul>
+
+    <h3>Buffered I/O library</h3>
+
+    <ul>
+      <li> <a href="io_copy.3.html"><code>io_copy(3)</code></a> </li>
+      <li> <a href="io_fclose.3.html"><code>io_fclose(3)</code></a> </li>
+      <li> <a href="io_fdopen.3.html"><code>io_fdopen(3)</code></a> </li>
+      <li> <a href="io_fflush.3.html"><code>io_fflush(3)</code></a> </li>
+      <li> <a href="io_fgetc.3.html"><code>io_fgetc(3)</code></a> </li>
+      <li> <a href="io_fgets.3.html"><code>io_fgets(3)</code></a> </li>
+      <li> <a href="io_fileno.3.html"><code>io_fileno(3)</code></a> </li>
+      <li> <a href="io_fprintf.3.html"><code>io_fprintf(3)</code></a> </li>
+      <li> <a href="io_fputc.3.html"><code>io_fputc(3)</code></a> </li>
+      <li> <a href="io_fputs.3.html"><code>io_fputs(3)</code></a> </li>
+      <li> <a href="io_fread.3.html"><code>io_fread(3)</code></a> </li>
+      <li> <a href="io_fwrite.3.html"><code>io_fwrite(3)</code></a> </li>
+      <li> <a href="io_get_inbufcount.3.html"><code>io_get_inbufcount(3)</code></a> </li>
+      <li> <a href="io_get_outbufcount.3.html"><code>io_get_outbufcount(3)</code></a> </li>
+      <li> <a href="io_pclose.3.html"><code>io_pclose(3)</code></a> </li>
+      <li> <a href="io_popen.3.html"><code>io_popen(3)</code></a> </li>
+      <li> <a href="io_setbufmode.3.html"><code>io_setbufmode(3)</code></a> </li>
+      <li> <a href="io_ungetc.3.html"><code>io_ungetc(3)</code></a> </li>
+    </ul>
+
+    <h3>HTTP server library</h3>
+
+    <ul>
+      <li> <a href="http_get_log_file.3.html"><code>http_get_log_file(3)</code></a> </li>
+      <li> <a href="http_get_servername.3.html"><code>http_get_servername(3)</code></a> </li>
+      <li> <a href="http_request_get_header.3.html"><code>http_request_get_header(3)</code></a> </li>
+      <li> <a href="http_request_get_headers.3.html"><code>http_request_get_headers(3)</code></a> </li>
+      <li> <a href="http_request_is_HEAD.3.html"><code>http_request_is_HEAD(3)</code></a> </li>
+      <li> <a href="http_request_method.3.html"><code>http_request_method(3)</code></a> </li>
+      <li> <a href="http_request_method_string.3.html"><code>http_request_method_string(3)</code></a> </li>
+      <li> <a href="http_request_nr_headers.3.html"><code>http_request_nr_headers(3)</code></a> </li>
+      <li> <a href="http_request_path.3.html"><code>http_request_path(3)</code></a> </li>
+      <li> <a href="http_request_query_string.3.html"><code>http_request_query_string(3)</code></a> </li>
+      <li> <a href="http_request_time.3.html"><code>http_request_time(3)</code></a> </li>
+      <li> <a href="http_request_url.3.html"><code>http_request_url(3)</code></a> </li>
+      <li> <a href="http_request_version.3.html"><code>http_request_version(3)</code></a> </li>
+      <li> <a href="http_response_end_headers.3.html"><code>http_response_end_headers(3)</code></a> </li>
+      <li> <a href="http_response_send_header.3.html"><code>http_response_send_header(3)</code></a> </li>
+      <li> <a href="http_response_send_headers.3.html"><code>http_response_send_headers(3)</code></a> </li>
+      <li> <a href="http_set_log_file.3.html"><code>http_set_log_file(3)</code></a> </li>
+      <li> <a href="http_set_servername.3.html"><code>http_set_servername(3)</code></a> </li>
+      <li> <a href="new_http_request.3.html"><code>new_http_request(3)</code></a> </li>
+      <li> <a href="new_http_response.3.html"><code>new_http_response(3)</code></a> </li>
+    </ul>
+
+    <h3>CGI library</h3>
+
+    <ul>
+      <li> <a href="cgi_erase.3.html"><code>cgi_erase(3)</code></a> </li>
+      <li> <a href="cgi_escape.3.html"><code>cgi_escape(3)</code></a> </li>
+      <li> <a href="cgi_get_post_max.3.html"><code>cgi_get_post_max(3)</code></a> </li>
+      <li> <a href="cgi_param.3.html"><code>cgi_param(3)</code></a> </li>
+      <li> <a href="cgi_param_list.3.html"><code>cgi_param_list(3)</code></a> </li>
+      <li> <a href="cgi_params.3.html"><code>cgi_params(3)</code></a> </li>
+      <li> <a href="cgi_set_post_max.3.html"><code>cgi_set_post_max(3)</code></a> </li>
+      <li> <a href="cgi_unescape.3.html"><code>cgi_unescape(3)</code></a> </li>
+      <li> <a href="copy_cgi.3.html"><code>copy_cgi(3)</code></a> </li>
+      <li> <a href="new_cgi.3.html"><code>new_cgi(3)</code></a> </li>
+    </ul>
+
+    <h3>Thread synchronisation (mutexes, R/W-locks, wait queues)</h3>
+
+    <ul>
+      <li> <a href="mutex_enter.3.html"><code>mutex_enter(3)</code></a> </li>
+      <li> <a href="mutex_leave.3.html"><code>mutex_leave(3)</code></a> </li>
+      <li> <a href="mutex_try_enter.3.html"><code>mutex_try_enter(3)</code></a> </li>
+      <li> <a href="new_mutex.3.html"><code>new_mutex(3)</code></a> </li>
+      <li> <a href="new_rwlock.3.html"><code>new_rwlock(3)</code></a> </li>
+      <li> <a href="new_wait_queue.3.html"><code>new_wait_queue(3)</code></a> </li>
+      <li> <a href="rwlock_enter_read.3.html"><code>rwlock_enter_read(3)</code></a> </li>
+      <li> <a href="rwlock_enter_write.3.html"><code>rwlock_enter_write(3)</code></a> </li>
+      <li> <a href="rwlock_leave.3.html"><code>rwlock_leave(3)</code></a> </li>
+      <li> <a href="rwlock_readers_have_priority.3.html"><code>rwlock_readers_have_priority(3)</code></a> </li>
+      <li> <a href="rwlock_try_enter_read.3.html"><code>rwlock_try_enter_read(3)</code></a> </li>
+      <li> <a href="rwlock_try_enter_write.3.html"><code>rwlock_try_enter_write(3)</code></a> </li>
+      <li> <a href="rwlock_writers_have_priority.3.html"><code>rwlock_writers_have_priority(3)</code></a> </li>
+      <li> <a href="wq_nr_sleepers.3.html"><code>wq_nr_sleepers(3)</code></a> </li>
+      <li> <a href="wq_sleep_on.3.html"><code>wq_sleep_on(3)</code></a> </li>
+      <li> <a href="wq_wake_up.3.html"><code>wq_wake_up(3)</code></a> </li>
+      <li> <a href="wq_wake_up_one.3.html"><code>wq_wake_up_one(3)</code></a> </li>
+    </ul>
+
+    <h3>FTP client library</h3>
+
+    <ul>
+      <li> <a href="ftpc_ascii.3.html"><code>ftpc_ascii(3)</code></a> </li>
+      <li> <a href="ftpc_binary.3.html"><code>ftpc_binary(3)</code></a> </li>
+      <li> <a href="ftpc_cdup.3.html"><code>ftpc_cdup(3)</code></a> </li>
+      <li> <a href="ftpc_cwd.3.html"><code>ftpc_cwd(3)</code></a> </li>
+      <li> <a href="ftpc_delete.3.html"><code>ftpc_delete(3)</code></a> </li>
+      <li> <a href="ftpc_dir.3.html"><code>ftpc_dir(3)</code></a> </li>
+      <li> <a href="ftpc_get.3.html"><code>ftpc_get(3)</code></a> </li>
+      <li> <a href="ftpc_login.3.html"><code>ftpc_login(3)</code></a> </li>
+      <li> <a href="ftpc_ls.3.html"><code>ftpc_ls(3)</code></a> </li>
+      <li> <a href="ftpc_mkdir.3.html"><code>ftpc_mkdir(3)</code></a> </li>
+      <li> <a href="ftpc_put.3.html"><code>ftpc_put(3)</code></a> </li>
+      <li> <a href="ftpc_pwd.3.html"><code>ftpc_pwd(3)</code></a> </li>
+      <li> <a href="ftpc_quit.3.html"><code>ftpc_quit(3)</code></a> </li>
+      <li> <a href="ftpc_quote.3.html"><code>ftpc_quote(3)</code></a> </li>
+      <li> <a href="ftpc_rmdir.3.html"><code>ftpc_rmdir(3)</code></a> </li>
+      <li> <a href="ftpc_set_passive_mode.3.html"><code>ftpc_set_passive_mode(3)</code></a> </li>
+      <li> <a href="ftpc_type.3.html"><code>ftpc_type(3)</code></a> </li>
+      <li> <a href="new_ftpc.3.html"><code>new_ftpc(3)</code></a> </li>
+    </ul>
+
+    <hr>
+    <address><a href="mailto:rich@annexia.org">Richard Jones</a></address>
+<!-- Created: Wed May  1 19:36:16 BST 2002 -->
+<!-- hhmts start -->
+Last modified: Sun Dec  1 14:44:00 GMT 2002
+<!-- hhmts end -->
+  </body>
+</html>

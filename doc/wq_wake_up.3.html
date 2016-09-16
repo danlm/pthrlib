@@ -1,0 +1,217 @@
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta name="Content-Style" content="text/css">
+<title>new_wait_queue</title>
+</head>
+<body>
+
+<h1 align=center>new_wait_queue</h1>
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#AUTHOR">AUTHOR</a><br>
+<a href="#LICENSE">LICENSE</a><br>
+<a href="#VERSION">VERSION</a><br>
+<a href="#HISTORY">HISTORY</a><br>
+
+<hr>
+<!-- Creator     : groff version 1.17.2 -->
+<!-- CreationDate: Fri Aug 30 16:16:46 2002 -->
+<a name="NAME"></a>
+<h2>NAME</h2>
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+new_wait_queue, wq_wake_up, wq_wake_up_one, wq_sleep_on, wq_nr_sleepers - wait queues</td></table>
+<a name="SYNOPSIS"></a>
+<h2>SYNOPSIS</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<pre><b>#include &lt;pthr_wait_queue.h&gt;
+
+wait_queue new_wait_queue (pool);
+void wq_wake_up (wait_queue);
+void wq_wake_up_one (wait_queue);
+void wq_sleep_on (wait_queue, pseudothread);
+int wq_nr_sleepers (wait_queue);
+</b></pre></td></table>
+<a name="DESCRIPTION"></a>
+<h2>DESCRIPTION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>new_wait_queue</b> creates a wait queue
+object.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>wq_wake_up</b> wakes up all the threads which are
+currently sleeping on the wait queue. Note that this
+function does not block, and because pseudothreads are
+non-preemptive, none of the sleeping threads will actually
+begin running until at least the current thread blocks
+somewhere else.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>wq_wake_up_one</b> wakes up just the first thread at the
+head of the wait queue (the one which has been waiting the
+longest).</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>wq_sleep_on</b> sends the current thread to sleep on the
+wait queue. This call blocks (obviously).</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>wq_nr_sleepers</b> returns the number of threads which
+are currently asleep on the wait queue.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Please read the HISTORY section below for some background
+into how wait queues are implemented. This may help if you
+find there are tricky race conditions in your
+code.</td></table>
+<a name="AUTHOR"></a>
+<h2>AUTHOR</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Richard Jones &lt;rich@annexia.org&gt;</td></table>
+<a name="LICENSE"></a>
+<h2>LICENSE</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+GNU LGPL (see http://www.gnu.org/)</td></table>
+<a name="VERSION"></a>
+<h2>VERSION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+pthrlib-3.0.3</td></table>
+<a name="HISTORY"></a>
+<h2>HISTORY</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Originally, wait queues were implemented using underlying
+Unix pipes. This worked (to some extent) but the overhead of
+requiring one pipe (ie. one inode, two file descriptors) per
+wait queue made this implementation unacceptably
+heavyweight.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Wait queues are now implemented using a simple hack in the
+reactor which will be described below.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Wait queues are subtle. Consider this example: Threads 1, 2
+and 3 are sleeping on a wait queue. Now thread 4 wakes up
+the queue. You would expect (probably) threads 1, 2 and 3 to
+each be woken up and allowed to start running. However,
+since this is a cooperatively multitasking environment, it
+may happen that thread 1 wakes up first, does some work and
+then goes back to sleep on the wait queue, all before
+threads 2 and 3 have woken up. With a naive implementation
+of wait queues, thread 4 might end up waking up thread 1
+*again* (and even again after that), never waking up threads
+2 and 3 and ultimately starving those threads.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+To avoid this situation, we might consider two possible
+alternatives: either when thread 1 goes back to sleep, it
+goes to sleep on a 'different' queue, or else thread 4 might
+take a copy of the wait queue and delete the queue before it
+wakes any of the threads up.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Another nasty situation which might arise in real life is
+this: Again, threads 1, 2 and 3 are sleeping. Thread 4 wakes
+them up. Thread 1, while processing its work, happens also
+to wake up the same wait queue. What should happen to this
+second wake-up event? Should it be ignored? Should it wake
+up threads 2 and 3? Should it wake up any other threads
+which happen to have gone to sleep on the queue after 1, 2
+and 3? Or perhaps some combination of these?</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+The solution that we have come up with is as follows. A wait
+queue consists of a simple list of threads which are
+sleeping on it. When a thread wishes to sleep on the wait
+queue, it is added to this list, and it switches back into
+the reactor context. When a thread wishes to wake up all
+sleepers, it: (a) copies the list of sleeping pseudothreads
+into its own private space (b) clears the list of sleeping
+pseudothreads (c) registers a prepoll handler to run which
+will wake up (ie. switch into the context of) each of these
+threads in turn (d) continues to run to completion. A thread
+which wishes to wake just one pseudothread works similarly
+except that it only copies (and removes) a single item off
+the list.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Note various invariant conditions: A thread cannot be
+entered on the wait queue sleeping list more than once
+(because it cannot call sleep_on when it is already
+sleeping). For similar reasons, a thread cannot be entered
+on any of the multiple lists at the same time. This implies
+that a thread cannot be woken up multiple
+times.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+The reader should satisfy themselves that this algorithm is
+free of races, and solves all the problems outlined above.
+In addition, it has the desirable property that wake_up*
+never sleeps.</td></table>
+<hr>
+</body>
+</html>

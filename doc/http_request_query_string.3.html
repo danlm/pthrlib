@@ -1,0 +1,165 @@
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta name="Content-Style" content="text/css">
+<title>new_http_request</title>
+</head>
+<body>
+
+<h1 align=center>new_http_request</h1>
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#AUTHOR">AUTHOR</a><br>
+<a href="#LICENSE">LICENSE</a><br>
+<a href="#VERSION">VERSION</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+
+<hr>
+<!-- Creator     : groff version 1.17.2 -->
+<!-- CreationDate: Fri Aug 30 16:16:22 2002 -->
+<a name="NAME"></a>
+<h2>NAME</h2>
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+new_http_request, http_request_time, http_request_url, http_request_path, http_request_query_string, http_request_method, http_request_method_string, http_request_is_HEAD, http_request_version, http_request_nr_headers, http_request_get_headers, http_request_get_header - functions for parsing HTTP requests</td></table>
+<a name="SYNOPSIS"></a>
+<h2>SYNOPSIS</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<pre><b>#include &lt;pthr_http.h&gt;
+
+http_request new_http_request (pseudothread, io_handle);
+time_t http_request_time (http_request);
+const char *http_request_url (http_request);
+const char *http_request_path (http_request);
+const char *http_request_query_string (http_request);
+int http_request_method (http_request);
+const char *http_request_method_string (http_request);
+int http_request_is_HEAD (http_request);
+void http_request_version (http_request, int *major, int *minor);
+int http_request_nr_headers (http_request);
+vector http_request_get_headers (http_request);
+const char *http_request_get_header (http_request h, const char *key);
+</b></pre></td></table>
+<a name="DESCRIPTION"></a>
+<h2>DESCRIPTION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+These functions allow you to efficiently parse incoming HTTP
+requests from conforming HTTP/0.9, HTTP/1.0 and HTTP/1.1
+clients. The request parser understands GET, HEAD and POST
+requests and conforms as far as possible to RFC
+2616.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>new_http_request</b> creates a new request object,
+parsing the incoming request on the given <b>io_handle</b>.
+If the stream closes at the beginning of the request the
+function returns <b>NULL</b>. If the request is faulty, then
+the library prints a message to syslog and throws an
+exception by calling <b>pth_die(3)</b>. Otherwise it
+initializes a complete <b>http_request</b> object and
+returns it.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>http_request_time</b> returns the timestamp of the
+incoming request.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>http_request_url</b> returns the complete URL of the
+request. <b>http_request_path</b> returns just the path
+component of the URL (ie. without the query string if there
+was one). <b>http_request_query_string</b> returns just the
+query string (for GET requests only). Do not do your own
+parsing of query strings: there is a CGI library built into
+pthrlib (see: <b>new_cgi(3)</b>).</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>http_request_method</b> returns the method, one of
+<b>HTTP_METHOD_GET</b>, <b>HTTP_METHOD_HEAD</b> or
+<b>HTTP_METHOD_POST</b>. <b>http_request_is_HEAD</b> is just
+a quick way of testing if the method is a HEAD request.
+<b>http_request_method_string</b> returns the method as a
+string rather than a coded number.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>http_request_version</b> returns the major and minor
+numbers of the HTTP request (eg. major = 1, minor = 0 for a
+HTTP/1.0 request).</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>http_request_nr_headers</b>,
+<b>http_request_get_headers</b> and
+<b>http_request_get_header</b> return the number of HTTP
+headers, the list of HTTP headers and a particular HTTP
+header (if it exists). <b>http_request_get_headers</b>
+returns a <b>vector</b> or <b>struct http_header</b>. This
+structure contains at least two fields called <b>key</b> and
+<b>value</b>. HTTP header keys are case insensitive when
+searching, and you will find that the list of keys returned
+by <b>http_request_get_headers</b> has been converted to
+lowercase.</td></table>
+<a name="AUTHOR"></a>
+<h2>AUTHOR</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Richard Jones &lt;rich@annexia.org&gt;</td></table>
+<a name="LICENSE"></a>
+<h2>LICENSE</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+GNU LGPL (see http://www.gnu.org/)</td></table>
+<a name="VERSION"></a>
+<h2>VERSION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+pthrlib-3.0.3</td></table>
+<a name="SEE ALSO"></a>
+<h2>SEE ALSO</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>new_http_response(3)</b>, <b>new_cgi(3)</b>,
+<b>new_pseudothread(3)</b>, <b>io_fdopen(3)</b>, RFC
+2616.</td></table>
+<hr>
+</body>
+</html>

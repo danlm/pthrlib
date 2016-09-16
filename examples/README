@@ -1,0 +1,53 @@
+Examples
+--------
+
+pthr_eg1_*
+
+	This is a very basic example webserver which simply
+	prints out the query string and a few other details
+	like request headers when you connect to it.
+
+	Run it as:
+
+	./pthr_eg1_echo -p 8002
+
+	and then try connecting to it (eg. with lynx, netscape, etc.):
+
+	http://localhost:8002/something
+
+pthr_eg2_*
+
+	This is a slightly more advanced example. This webserver
+	will serve flat files (only). It can be used for benchmarking,
+	profiling/optimizing the library, or even as a very simple
+	production webserver.
+
+	It needs to be started as ``root'' because it chroots and
+	changes its user ID for security reasons.
+
+	All configuration is by way of command line arguments. Try
+	typing ``./pthr_eg2_server --help'' for a complete list.
+
+	This webserver is capable of exploiting the full power
+	of SMP machines.
+
+	To start it (as root):
+
+	./pthr_eg2_server -p 8003 -r /home/httpd/html -u nobody
+
+	If you have more than one processor, then you need to
+	use the ``-n'' argument to tell it how many processors
+	you have.
+
+	Tip for benchmarking: use a lot of client machines
+	connected through a full-duplex ethernet switch to
+	the server. On each client machine, run a recursive
+	``wget'' to download a large number of files, eg:
+
+	wget -r http://server:8003/
+
+rws
+
+	RWS is a full-featured webserver built on top of pthrlib.
+	It is distributed separately. You can get it from
+	http://www.annexia.org/freeware/rws/

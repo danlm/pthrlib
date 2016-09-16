@@ -1,0 +1,188 @@
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta name="Content-Style" content="text/css">
+<title>pth_get_pool</title>
+</head>
+<body>
+
+<h1 align=center>pth_get_pool</h1>
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#AUTHOR">AUTHOR</a><br>
+<a href="#LICENSE">LICENSE</a><br>
+<a href="#VERSION">VERSION</a><br>
+
+<hr>
+<!-- Creator     : groff version 1.17.2 -->
+<!-- CreationDate: Fri Aug 30 16:16:39 2002 -->
+<a name="NAME"></a>
+<h2>NAME</h2>
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+pth_get_pool, pth_get_name, pth_get_thread_num, pth_get_run, pth_get_data, pth_get_language, pth_get_tz, pth_get_stack, pth_get_stack_size, pth_get_PC, pth_get_SP, pth_set_name, pth_set_language, pth_set_tz - get and set status of pseudothreads</td></table>
+<a name="SYNOPSIS"></a>
+<h2>SYNOPSIS</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<pre><b>#include &lt;pthr_pseudothread.h&gt;
+
+pool pth_get_pool (pseudothread pth);
+const char *pth_get_name (pseudothread pth);
+int pth_get_thread_num (pseudothread pth);
+void (*pth_get_run (pseudothread pth)) (void *);
+void *pth_get_data (pseudothread pth);
+const char *pth_get_language (pseudothread pth);
+const char *pth_get_tz (pseudothread pth);
+void *pth_get_stack (pseudothread pth);
+int pth_get_stack_size (pseudothread pth);
+unsigned long pth_get_PC (pseudothread pth);
+unsigned long pth_get_SP (pseudothread pth);
+void pth_set_name (pseudothread pth, const char *name);
+void pth_set_language (pseudothread, const char *lang);
+void pth_set_tz (pseudothread, const char *tz);
+</b></pre></td></table>
+<a name="DESCRIPTION"></a>
+<h2>DESCRIPTION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_get_pool</b> returns the pool associated with this
+thread. The thread should use this pool for all allocations,
+ensuring that they are cleaned up correctly when the thread
+is deleted. See <b>new_pool(3)</b>.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_get_name</b> returns the name of the thread. Note
+that this string is normally stored in thread's local pool,
+and therefore the string memory may be unexpected
+deallocated if the thread exits. Callers should take a copy
+of the string in their own pool if they are likely to need
+the string for a long period of time.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_get_thread_num</b> returns the thread number (roughly
+the equivalent of a process ID).</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_get_run</b> and <b>pth_get_data</b> return the
+original entry point information of the thread.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_get_language</b> returns the value of the
+<b>LANGUAGE</b> environment variable for this thread. See
+the discussion of <b>pth_set_language</b>
+below.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_get_language</b> returns the value of the <b>TZ</b>
+environment variable for this thread. See the discussion of
+<b>pth_set_tz</b> below.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_get_stack</b> returns the top of the stack for this
+thread.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_get_stack_size</b> returns the maximum size of the
+stack for this thread.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_get_PC</b> returns the current program counter (PC)
+for this thread. Obviously it only makes sense to call this
+from another thread.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_get_SP</b> returns the current stack pointer (SP) for
+this thread. Obviously it only makes sense to call this from
+another thread.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_set_name</b> changes the name of the thread. The
+string <b>name</b> argument passed must be either statically
+allocated, or allocated in the thread's own pool (the normal
+case), or else allocated in another pool with a longer life
+than the current thread.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_set_language</b> changes the per-thread
+<b>LANGUAGE</b> environment variable. This is useful when
+serving clients from multiple locales, and using GNU gettext
+for translation.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_set_tz</b> changes the per-thread <b>TZ</b>
+environment variable. This is useful when serving clients
+from multiple timezones, and using <b>localtime</b> and
+related functions.</td></table>
+<a name="AUTHOR"></a>
+<h2>AUTHOR</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Richard Jones &lt;rich@annexia.org&gt;</td></table>
+<a name="LICENSE"></a>
+<h2>LICENSE</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+GNU LGPL (see http://www.gnu.org/)</td></table>
+<a name="VERSION"></a>
+<h2>VERSION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+pthrlib-3.0.3</td></table>
+<hr>
+</body>
+</html>

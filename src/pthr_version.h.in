@@ -1,0 +1,4 @@
+/* -*- C -*- @configure_input@ */
+
+#define PTHRLIB_PACKAGE "@PACKAGE@"
+#define PTHRLIB_VERSION "@VERSION@"

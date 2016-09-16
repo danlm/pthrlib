@@ -1,0 +1,171 @@
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta name="Content-Style" content="text/css">
+<title>pthr_server_main_loop</title>
+</head>
+<body>
+
+<h1 align=center>pthr_server_main_loop</h1>
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#AUTHOR">AUTHOR</a><br>
+<a href="#LICENSE">LICENSE</a><br>
+<a href="#VERSION">VERSION</a><br>
+
+<hr>
+<!-- Creator     : groff version 1.17.2 -->
+<!-- CreationDate: Fri Aug 30 16:16:42 2002 -->
+<a name="NAME"></a>
+<h2>NAME</h2>
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+pthr_server_main_loop, pthr_server_default_port, pthr_server_port_option_name, pthr_server_disable_syslog, pthr_server_package_name, pthr_server_disable_fork, pthr_server_disable_chdir, pthr_server_disable_close, pthr_server_chroot, pthr_server_username, pthr_server_stderr_file, pthr_server_startup_fn - Enter server main loop.</td></table>
+<a name="SYNOPSIS"></a>
+<h2>SYNOPSIS</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<pre><b>#include &lt;pthr_server.h&gt;
+
+void pthr_server_main_loop (int argc, char *argv[], void (*processor_fn) (int sock, void *));
+void pthr_server_default_port (int default_port);
+void pthr_server_port_option_name (char port_option_name);
+void pthr_server_disable_syslog (void);
+void pthr_server_package_name (const char *package_name);
+void pthr_server_disable_fork (void);
+void pthr_server_disable_chdir (void);
+void pthr_server_disable_close (void);
+void pthr_server_chroot (const char *root);
+void pthr_server_username (const char *username);
+void pthr_server_stderr_file (const char *pathname);
+void pthr_server_startup_fn (void (*startup_fn) (int argc, char *argv[]));
+</b></pre></td></table>
+<a name="DESCRIPTION"></a>
+<h2>DESCRIPTION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+The function <b>pthr_server_main_loop</b> is a helper
+function which allows you to write very simple servers
+quickly using <b>pthrlib</b>. Normally your <b>main</b>
+should just contain a call to <b>pthr_server_main_loop
+(argc, argv, processor)</b> and you would include a function
+called <b>processor</b> which is called on every
+connection.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+The other functions allow you to customise the behaviour of
+<b>pthr_server_main_loop</b>. You should call any of these
+once in your <b>main</b> before calling
+<b>pthr_server_main_loop</b>.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+By default the server listens on port 80 and allows you to
+override this on the command line using the <b>-p</b>
+option. To change this, call <b>pthr_server_default_port</b>
+and/or <b>pthr_server_port_option_name</b>.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+By default the server writes package and version information
+to syslog (although it will not be able to correctly
+determine the package). Use
+<b>pthr_server_disable_syslog</b> to disable syslogging
+entirely, or <b>pthr_server_package_name</b> to change the
+name displayed in the logs.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+By default the server forks into the background, changes to
+the root directory and disconnects entirely from the
+terminal. Use <b>pthr_server_disable_fork</b>,
+<b>pthr_server_disable_chdir</b> and
+<b>pthr_server_disable_close</b> to change these
+respectively.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+If you wish to have the server chroot after start up, then
+call <b>pthr_server_chroot</b>. This is only possible if the
+server is run as root, otherwise the chroot is silently
+ignored.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+If you wish to have the server change user and group after
+start up, then call <b>pthr_server_username</b> (the group
+is taken from the password file and <b>initgroups(3)</b> is
+also called). This is only possible if the server is run as
+root, otherwise the change user is silently
+ignored.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+If you wish to have <b>stderr</b> connected to a file (this
+is done after changing user, so make sure the file is
+accessible or owned by the user, not by root), then call
+<b>pthr_server_stderr_file</b>. Note that unless you call
+this function or <b>pthr_server_disable_close</b> then
+<b>stderr</b> is sent to <b>/dev/null</b>!</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+The <b>startup_fn</b> is called after all of the above
+operations have completed, but before the listener thread is
+created. You do miscellaneous start-of-day functions from
+here, in particular starting up other global threads. The
+command line arguments are also passed to this
+function.</td></table>
+<a name="AUTHOR"></a>
+<h2>AUTHOR</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Richard Jones &lt;rich@annexia.org&gt;</td></table>
+<a name="LICENSE"></a>
+<h2>LICENSE</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+GNU LGPL (see http://www.gnu.org/)</td></table>
+<a name="VERSION"></a>
+<h2>VERSION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+pthrlib-3.0.3</td></table>
+<hr>
+</body>
+</html>

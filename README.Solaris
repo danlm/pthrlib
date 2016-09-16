@@ -1,0 +1,16 @@
+You need to install c2lib, postgresql (and development libraries) and pcre.
+
+PostgreSQL is normally installed in /usr/local/pgsql, so you need to
+add the right directories to your $CFLAGS and $LIBS, eg:
+
+CFLAGS='-I/usr/local/pgsql/include' export CFLAGS
+LIBS='-L/usr/local/pgsql/lib' export LIBS
+
+If in doubt, check build-*/config.h, and make sure it contains the
+following line after the configure stage:
+
+#define HAVE_LIBPQ_FE_H 1
+
+Solaris supports the setcontext/makecontext family of functions, and
+pthrlib should be able to detect this. Check that HAVE_WORKING_SETCONTEXT
+is defined in build-*/config.h.

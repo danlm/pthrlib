@@ -1,0 +1,91 @@
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta name="Content-Style" content="text/css">
+<title>pth_send</title>
+</head>
+<body>
+
+<h1 align=center>pth_send</h1>
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#AUTHOR">AUTHOR</a><br>
+<a href="#LICENSE">LICENSE</a><br>
+<a href="#VERSION">VERSION</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+
+<hr>
+<!-- Creator     : groff version 1.17.2 -->
+<!-- CreationDate: Fri Aug 30 16:16:37 2002 -->
+<a name="NAME"></a>
+<h2>NAME</h2>
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+pth_send, pth_sendto, pth_sendmsg, pth_recv, pth_recvfrom, pth_recvmsg - pseudothread network system calls</td></table>
+<a name="SYNOPSIS"></a>
+<h2>SYNOPSIS</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<pre><b>#include &lt;pthr_pseudothread.h&gt;
+
+int pth_send (pseudothread pth, int s, const void *msg, int len, unsigned int flags);
+int pth_sendto (pseudothread pth, int s, const void *msg, int len, unsigned int flags, const struct sockaddr *to, int tolen);
+int pth_sendmsg (pseudothread pth, int s, const struct msghdr *msg, unsigned int flags);
+int pth_recv (pseudothread pth, int s, void *buf, int len, unsigned int flags);
+int pth_recvfrom (pseudothread pth, int s, void *buf, int len, unsigned int flags, struct sockaddr *from, int *fromlen);
+int pth_recvmsg (pseudothread pth, int s, struct msghdr *msg, unsigned int flags);
+</b></pre></td></table>
+<a name="DESCRIPTION"></a>
+<h2>DESCRIPTION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_send</b>, <b>pth_sendto</b>, <b>pth_sendmsg</b>,
+<b>pth_recv</b>, <b>pth_recvfrom</b> and <b>pth_recvmsg</b>
+behave just like the corresponding system calls. However
+these calls handle non-blocking sockets and cause the thread
+to sleep on the reactor if it would block.</td></table>
+<a name="AUTHOR"></a>
+<h2>AUTHOR</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Richard Jones &lt;rich@annexia.org&gt;</td></table>
+<a name="LICENSE"></a>
+<h2>LICENSE</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+GNU LGPL (see http://www.gnu.org/)</td></table>
+<a name="VERSION"></a>
+<h2>VERSION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+pthrlib-3.0.3</td></table>
+<a name="SEE ALSO"></a>
+<h2>SEE ALSO</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_poll(3)</b>, <b>pth_read(3)</b>,
+<b>pth_write(3)</b>.</td></table>
+<hr>
+</body>
+</html>

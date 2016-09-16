@@ -1,0 +1,184 @@
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta name="Content-Style" content="text/css">
+<title>new_rwlock</title>
+</head>
+<body>
+
+<h1 align=center>new_rwlock</h1>
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#BUGS">BUGS</a><br>
+<a href="#AUTHOR">AUTHOR</a><br>
+<a href="#LICENSE">LICENSE</a><br>
+<a href="#VERSION">VERSION</a><br>
+
+<hr>
+<!-- Creator     : groff version 1.17.2 -->
+<!-- CreationDate: Fri Aug 30 16:16:44 2002 -->
+<a name="NAME"></a>
+<h2>NAME</h2>
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+new_rwlock, rwlock_writers_have_priority, rwlock_readers_have_priority, rwlock_enter_read, rwlock_enter_write, rwlock_try_enter_read, rwlock_try_enter_write, rwlock_leave - multiple reader / single writer locks (rwlocks)</td></table>
+<a name="SYNOPSIS"></a>
+<h2>SYNOPSIS</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<pre><b>#include &lt;pthr_rwlock.h&gt;
+
+rwlock new_rwlock (pool);
+void rwlock_writers_have_priority (rwlock);
+void rwlock_readers_have_priority (rwlock);
+void rwlock_enter_read (rwlock, pseudothread);
+void rwlock_enter_write (rwlock, pseudothread);
+int rwlock_try_enter_read (rwlock, pseudothread);
+int rwlock_try_enter_write (rwlock, pseudothread);
+void rwlock_leave (rwlock, pseudothread);
+</b></pre></td></table>
+<a name="DESCRIPTION"></a>
+<h2>DESCRIPTION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Multiple reader / single writer locks (rwlocks) do what they
+say. They allow either many readers to access a critical
+section or a single writer (but not both). If instead you
+require simple mutex semantics, then please see
+&lt;pthr_mutex.h&gt;.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+RWlocks are automatically released if they are being held
+when the thread exits.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+RWlocks are not ``upgradable''. The implementation is too
+complex to justify that.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Note that there are possible deadlocks when using locks. To
+avoid deadlocks, always ensure every thread acquires locks
+in the same order.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>new_rwlock</b> creates a new rwlock object.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>rwlock_writers_have_priority</b> changes the nature of
+the lock so that writers have priority over readers. If this
+is the case then new readers will not be able to enter a
+critical section if there are writers waiting to enter. [NB:
+This is the default.]</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>rwlock_readers_have_priority</b> changes the nature of
+the lock so that readers have priority over writers. Note
+that if this is the case then writers are likely to be
+starved if the lock is frequently read.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>rwlock_enter_read</b> enters the critical section as a
+reader. Any number of readers are allowed to enter a
+critical section at the same time. This function may
+block.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>rwlock_enter_write</b> enters the critical section as a
+writer. Only a single writer is allowed to enter a critical
+section, and then only if there are no readers. This
+function may block.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>rwlock_try_enter_read</b> is identical to
+<b>rwlock_enter_read</b>, but it does not block. It returns
+true if the lock was successfully acquired, or false if the
+operation would block.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>rwlock_try_enter_write</b> is identical to
+<b>rwlock_enter_write</b>, but it does not block. It returns
+true if the lock was successfully acquired, or false if the
+operation would block.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>rwlock_leave</b> leaves the critical
+section.</td></table>
+<a name="BUGS"></a>
+<h2>BUGS</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+A common mistake is to accidentally call <b>rwlock_leave</b>
+when you are not holding the lock. This generally causes the
+library to crash.</td></table>
+<a name="AUTHOR"></a>
+<h2>AUTHOR</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Richard Jones &lt;rich@annexia.org&gt;</td></table>
+<a name="LICENSE"></a>
+<h2>LICENSE</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+GNU LGPL (see http://www.gnu.org/)</td></table>
+<a name="VERSION"></a>
+<h2>VERSION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+pthrlib-3.0.3</td></table>
+<hr>
+</body>
+</html>

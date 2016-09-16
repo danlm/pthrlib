@@ -1,0 +1,172 @@
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta name="Content-Style" content="text/css">
+<title>io_fdopen</title>
+</head>
+<body>
+
+<h1 align=center>io_fdopen</h1>
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#AUTHOR">AUTHOR</a><br>
+<a href="#LICENSE">LICENSE</a><br>
+<a href="#VERSION">VERSION</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+
+<hr>
+<!-- Creator     : groff version 1.17.2 -->
+<!-- CreationDate: Fri Aug 30 16:16:27 2002 -->
+<a name="NAME"></a>
+<h2>NAME</h2>
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+io_fdopen, io_fclose, io_fgetc, io_fgets, io_ungetc, io_fread, io_fputc, io_fputs, io_fprintf, io_fwrite, io_fflush, io_fileno, io_popen, io_pclose, io_copy, io_setbufmode, io_get_inbufcount, io_get_outbufcount - A buffered I/O library</td></table>
+<a name="SYNOPSIS"></a>
+<h2>SYNOPSIS</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<pre><b>#include &lt;pthr_iolib.h&gt;
+
+io_handle io_fdopen (pseudothread pth, int sock);
+void io_fclose (io_handle);
+int io_fgetc (io_handle);
+char *io_fgets (char *s, int max_size, io_handle, int store_eol);
+int io_ungetc (int c, io_handle);
+size_t io_fread (void *ptr, size_t size, size_t nmemb, io_handle);
+int io_fputc (int c, io_handle);
+int io_fputs (const char *s, io_handle);
+int io_fprintf (io_handle, const char *fs, ...) __attribute__ ((format (printf, 2, 3)));
+size_t io_fwrite (const void *ptr, size_t size, size_t nmemb, io_handle);
+int io_fflush (io_handle);
+int io_fileno (io_handle);
+io_handle io_popen (pseudothread pth, const char *command, const char *mode);
+void io_pclose (io_handle);
+int io_copy (io_handle from_io, io_handle to_io, int len);
+void io_setbufmode (io_handle, int mode);
+int io_get_inbufcount (io_handle);
+int io_get_outbufcount (io_handle);
+</b></pre></td></table>
+<a name="DESCRIPTION"></a>
+<h2>DESCRIPTION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+The <b>io_*</b> functions replace the normal blocking C
+library <b>f*</b> functions with equivalents which work on
+non-blocking pseudothread file descriptors.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+All of the functions in the synopsis above work identically
+to the C library equivalents, except where documented
+below.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>io_fdopen</b> associates a socket <b>sock</b> with a I/O
+handle. The association cannot be broken later (so use
+<b>dup(2)</b> if you wish to later take back control of the
+underlying socket). If either the current thread exits or
+<b>io_fclose</b> is called, the underlying socket is closed
+(with <b>close(2)</b>).</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>io_fclose</b> flushes all unwritten data out of the
+socket and closes it.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>io_fgets</b> operates similarly to the ordinary C library
+function <b>fgets(3)</b>, except that it contains a useful
+fourth argument, <b>store_eol</b>. If this fourth argument
+is false, then the end of line characters (<b>CR</b>, <b>CR
+LF</b> or <b>LF</b>) are stripped from the string before it
+is stored.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>io_copy</b> copies <b>len</b> bytes from <b>from_io</b>
+to <b>to_io</b>. If <b>len</b> equals -1 then bytes are
+copied from <b>from_io</b> until end of file is reached. If
+<b>len</b> equals 0, then no bytes are copied. The number of
+bytes actually copied is returned.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>io_setbufmode</b> sets the output buffer mode, and works
+completely differently to the ordinary C library function
+<b>setbufmode(3)</b>. The three mode arguments possible are:
+<b>IO_MODE_LINE_BUFFERED</b>, <b>IO_MODE_UNBUFFERED</b> and
+<b>IO_MODE_FULLY_BUFFERED</b>, and these correspond to line
+buffering, no buffering and full (block)
+buffering.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>io_get_inbufcount</b> and <b>io_get_outbufcount</b>
+return the number of characters read and written on the
+socket since the socket was associated with the I/O
+object.</td></table>
+<a name="AUTHOR"></a>
+<h2>AUTHOR</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Richard Jones &lt;rich@annexia.org&gt;</td></table>
+<a name="LICENSE"></a>
+<h2>LICENSE</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+GNU LGPL (see http://www.gnu.org/)</td></table>
+<a name="VERSION"></a>
+<h2>VERSION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+pthrlib-3.0.3</td></table>
+<a name="SEE ALSO"></a>
+<h2>SEE ALSO</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>fgetc(3)</b>, <b>fgets(3)</b>, <b>ungetc(3)</b>,
+<b>fread(3)</b>, <b>fputc(3)</b>, <b>fputs(3)</b>,
+<b>fprintf(3)</b>, <b>fwrite(3)</b>, <b>fflush(3)</b>,
+<b>fileno(3)</b>, <b>popen(3)</b>, <b>pclose(3)</b>,
+<b>pth_exit(3)</b>.</td></table>
+<hr>
+</body>
+</html>

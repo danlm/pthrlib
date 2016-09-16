@@ -1,0 +1,589 @@
+# -*- Makefile -*-
+#
+# This is a make+ file. Make+ is a set of scripts which enhance GNU
+# make and let you build RPMs, and other package types with just one
+# control file.  To build this package you will need to download make+
+# from this site: http://www.annexia.org/freeware/makeplus/
+
+PACKAGE		:= pthrlib
+VERSION_MAJOR	:= 3
+VERSION_MINOR 	:= 3.1
+VERSION		:= $(VERSION_MAJOR).$(VERSION_MINOR)
+
+SUMMARY		:= small, fast, efficient server library for C
+COPYRIGHT	:= GNU LGPL
+AUTHOR		:= Richard W.M. Jones <rich@annexia.org>
+
+define DESCRIPTION
+pthrlib is a library for writing small, fast and efficient servers in
+C. It offers a list of advanced features. This library has been used
+to write a very tiny and fast web server called rws and a closed
+source chat server. All functions are documented in manual pages, and
+example servers are included.
+endef
+
+RPM_REQUIRES	:= c2lib >= 1.3.0, postgresql-devel >= 7.1
+RPM_GROUP	:= Development/Libraries
+
+CFLAGS		+= -Wall -Werror -g -O2 -I$(includedir)/c2lib \
+		   -I$(shell pg_config --includedir)
+ifneq ($(shell uname), SunOS)
+# Avoid a warning about reordering system include paths.
+CFLAGS		+= $(shell pcre-config --cflags)
+endif
+LIBS		+= -L$(libdir) -lc2lib \
+		   -L$(shell pg_config --libdir) -lpq \
+		   $(shell pcre-config --libs) -lm
+
+OBJS		:= src/pthr_cgi.o src/pthr_context.o src/pthr_dbi.o \
+		   src/pthr_ftpc.o src/pthr_http.o src/pthr_iolib.o \
+		   src/pthr_listener.o src/pthr_mutex.o \
+		   src/pthr_pseudothread.o src/pthr_reactor.o \
+		   src/pthr_rwlock.o src/pthr_server.o src/pthr_stack.o \
+		   src/pthr_wait_queue.o
+LOBJS		:= $(OBJS:.o=.lo)
+
+HEADERS		:= $(srcdir)/src/pthr_cgi.h $(srcdir)/src/pthr_context.h \
+		   $(srcdir)/src/pthr_dbi.h $(srcdir)/src/pthr_ftpc.h \
+		   $(srcdir)/src/pthr_http.h $(srcdir)/src/pthr_iolib.h \
+		   $(srcdir)/src/pthr_listener.h $(srcdir)/src/pthr_mutex.h \
+		   $(srcdir)/src/pthr_pseudothread.h \
+		   $(srcdir)/src/pthr_reactor.h \
+		   $(srcdir)/src/pthr_rwlock.h $(srcdir)/src/pthr_server.h \
+		   $(srcdir)/src/pthr_stack.h $(srcdir)/src/pthr_wait_queue.h
+
+all:	build
+
+configure:
+	@pg_config --version || \
+	( echo "PostgreSQL must be installed - make sure PATH" \
+	"contains pg bin directory"; exit 1 )
+	$(MP_CONFIGURE_START)
+#	$(MP_CHECK_LIB) pmap c2lib
+#	$(MP_CHECK_LIB) PQconnectStart pq
+	$(MP_CHECK_HEADERS) alloca.h arpa/inet.h assert.h \
+	ctype.h dirent.h errno.h \
+	execinfo.h fcntl.h grp.h libpq-fe.h netdb.h \
+	netinet/in.h netinet/ip.h netinet/ip_icmp.h postgresql/libpq-fe.h \
+	pwd.h setjmp.h signal.h string.h syslog.h sys/mman.h sys/poll.h \
+	sys/socket.h sys/stat.h sys/syslimits.h sys/time.h sys/types.h \
+	sys/uio.h sys/wait.h \
+	time.h ucontext.h unistd.h
+	$(MP_CHECK_FUNCS) backtrace getenv gettimeofday gmtime putenv setenv \
+	socket strftime syslog time unsetenv PQescapeString
+	$(srcdir)/conf/test_setcontext.sh
+	$(MP_CONFIGURE_END)
+
+build:	static dynamic examples/pthr_eg1_echo examples/pthr_eg2_server \
+	manpages syms
+
+# Build the static library.
+
+static:	src/libpthrlib.a
+
+src/libpthrlib.a: $(OBJS)
+	$(MP_LINK_STATIC) $@ $^
+
+# Build the dynamic library.
+
+dynamic: src/libpthrlib.so
+
+src/libpthrlib.so: $(LOBJS)
+	$(MP_LINK_DYNAMIC) $@ $^ $(LIBS)
+
+# Build object files.
+src/%.o: src/%.c
+	$(CC) $(CFLAGS) -I../src -c $< -o $@
+
+# Build dynamic object files.
+src/%.lo: src/%.c
+	$(CC) $(CFLAGS) -fPIC -I../src -c $< -o $@
+
+# Build the example programs.
+
+examples/pthr_eg1_echo: examples/pthr_eg1_echo.o examples/pthr_eg1_echo_main.o
+	$(CC) $(CFLAGS) $^ -o $@ -Lsrc -lpthrlib $(LIBS)
+
+examples/pthr_eg2_server: examples/pthr_eg2_server.o \
+	examples/pthr_eg2_server_main.o
+	$(CC) $(CFLAGS) $^ -o $@ -Lsrc -lpthrlib $(LIBS)
+
+# Build object files.
+examples/%.o: examples/%.c
+	$(CC) $(CFLAGS) -I../src -c $< -o $@
+
+# Build the manual pages.
+
+manpages: $(srcdir)/src/*.h
+	if cdoc; then \
+		rm -f *.3; \
+		cdoc \
+			--author '$(AUTHOR)' \
+			--license '$(COPYRIGHT)' \
+			--version '$(PACKAGE)-$(VERSION)' \
+			$^; \
+	fi
+
+# Build the symbols table.
+
+syms: src/libpthrlib.syms
+
+src/libpthrlib.syms: src/libpthrlib.so
+	nm $< | sort | grep -i '^[0-9a-f]' | awk '{print $$1 " " $$3}' > $@
+
+test: src/test_context src/test_reactor src/test_pseudothread src/test_select \
+	src/test_bigstack src/test_except1 src/test_except2 src/test_except3 \
+	src/test_mutex src/test_rwlock src/test_dbi
+	LD_LIBRARY_PATH=src:$(LD_LIBRARY_PATH) $(MP_RUN_TESTS) $^
+
+src/test_context: src/test_context.o
+	$(CC) $(CFLAGS) $^ -o $@ -Lsrc -lpthrlib $(LIBS)
+src/test_reactor: src/test_reactor.o
+	$(CC) $(CFLAGS) $^ -o $@ -Lsrc -lpthrlib $(LIBS)
+src/test_pseudothread: src/test_pseudothread.o
+	$(CC) $(CFLAGS) $^ -o $@ -Lsrc -lpthrlib $(LIBS)
+src/test_select: src/test_select.o
+	$(CC) $(CFLAGS) $^ -o $@ -Lsrc -lpthrlib $(LIBS)
+src/test_bigstack: src/test_bigstack.o
+	$(CC) $(CFLAGS) $^ -o $@ -Lsrc -lpthrlib $(LIBS)
+src/test_except1: src/test_except1.o
+	$(CC) $(CFLAGS) $^ -o $@ -Lsrc -lpthrlib $(LIBS)
+src/test_except2: src/test_except2.o
+	$(CC) $(CFLAGS) $^ -o $@ -Lsrc -lpthrlib $(LIBS)
+src/test_except3: src/test_except3.o
+	$(CC) $(CFLAGS) $^ -o $@ -Lsrc -lpthrlib $(LIBS)
+src/test_mutex: src/test_mutex.o
+	$(CC) $(CFLAGS) $^ -o $@ -Lsrc -lpthrlib $(LIBS)
+src/test_rwlock: src/test_rwlock.o
+	$(CC) $(CFLAGS) $^ -o $@ -Lsrc -lpthrlib $(LIBS)
+src/test_dbi: src/test_dbi.o
+	$(CC) $(CFLAGS) $^ -o $@ -Lsrc -lpthrlib $(LIBS)
+
+install:
+	install -d $(DESTDIR)$(libdir)
+	install -d $(DESTDIR)$(includedir)
+	install -d $(DESTDIR)$(man3dir)
+	install -d $(DESTDIR)$(datadir)/rws/symtabs/
+	install -d $(DESTDIR)$(bindir)
+
+	$(MP_INSTALL_STATIC_LIB) src/libpthrlib.a
+	$(MP_INSTALL_DYNAMIC_LIB) src/libpthrlib.so
+
+	install -m 0644 $(HEADERS)        $(DESTDIR)$(includedir)
+	install -m 0644 *.3               $(DESTDIR)$(man3dir)
+	install -m 0644 src/*.syms        $(DESTDIR)$(datadir)/rws/symtabs/
+	install -m 0755 examples/pthr_eg1_echo examples/pthr_eg2_server \
+	$(DESTDIR)$(bindir)
+
+define WEBSITE
+<% include page_header.msp %>
+
+    <h1>$(PACKAGE) - $(SUMMARY)</h1>
+
+    <p>
+      <tt>pthrlib</tt> is a library for writing small, fast and efficient
+      servers in C. It offers a list of advanced features (see below).
+      This library has been used to write a very tiny and fast
+      <a href="../rws/">web server called rws</a> and
+      a closed source chat server. All functions are documented in
+      manual pages, and example servers are included.
+    </p>
+
+    <p>
+      It contains the following features:
+    </p>
+
+    <ul>
+      <li> <i>reactor &amp; pseudothreads</i>: underpinning
+	the whole library is a lightweight cooperative threading
+	library written on top of a Reactor pattern. Typically
+	you can create of the order of thousands of threads
+	(the number of threads is generally limited by other
+	things like how many file descriptors your C library
+	supports -- assuming each thread is handling one client
+	over one socket). Pseudothreads support thread
+	listings and throw/catch-style exception handling.
+      <li> <i>iolib</i>: a buffered I/O library written
+	on top of the pseudothread "syscalls".
+      <li> <i>http</i>: a library for writing HTTP/1.1
+	RFC-compliant servers.
+      <li> <i>cgi</i>: a library for writing CGI scripts
+	in C which run inside the server [new in pthrlib 2.0.1].
+      <li> <i>dbi</i>: a PostgreSQL database interface,
+	modelled on Perl's DBI [new in pthrlib 3.0.8].
+      <li> <i>wait_queue</i>: synchronize between threads
+	using wait queues (several threads go to sleep on
+	the wait queue until some point later when another
+	thread wakes them all up).
+      <li> <i>mutex, rwlock</i>: simple mutual exclusion
+	locks and multiple-reader/single-writer locks.
+      <li> <i>listener</i>: a thread class which listens
+	for connections on a given port and throws off
+	threads to process them.
+      <li> <i>ftpc</i>: an FTP client library.
+    </ul>
+
+    <p>
+      <a href="doc/">There is extensive documentation and
+	a tutorial here.</a>
+    </p>
+
+    <h2>Download</h2>
+
+    <table border="1">
+      <tr>
+	<th> File </th>
+	<th> Format </th>
+	<th> Contents </th>
+      </tr>
+      <tr>
+	<td> <a href="$(PACKAGE)-$(VERSION).tar.gz">$(PACKAGE)-$(VERSION).tar.gz</a> </td>
+	<td> tar.gz </td>
+	<td> Latest source distribution </td>
+      </tr>
+      <tr>
+	<td> <a href="$(PACKAGE)-$(VERSION)-1.i686.rpm">$(PACKAGE)-$(VERSION)-1.i686.rpm</a> </td>
+	<td> i686 binary RPM </td>
+	<td> Binary development libraries, header files, man pages
+	  for Red Hat Linux </td>
+      </tr>
+      <tr>
+	<td> <a href="$(PACKAGE)-$(VERSION)-1.src.rpm">$(PACKAGE)-$(VERSION)-1.src.rpm</a> </td>
+	<td> source RPM </td>
+	<td> Source files for Red Hat Linux </td>
+      </tr>
+    </table>
+
+    <p>
+      This library requires <a href="../c2lib/">c2lib</a>.
+      To rebuild the manual pages which come with the
+      package, you will also need to download the
+      <a href="../c2lib/">cdoc</a> program. Since
+      3.2.0, pthrlib requires the <a href="../makeplus/">make+</a>
+      build system.
+    </p>
+
+    <p>
+      <a href="/cgi-bin/autopatch.pl?dir=pthrlib">Patches between versions
+	...</a>
+    </p>
+
+    <h2>News</h2>
+
+<p>
+<b>Sat Feb  8 17:00:47 GMT 2003:</b>
+Ported to Solaris, OpenBSD and FreeBSD (thanks to
+<a href="http://www.azazel.net/">Jeremy Sowden</a>
+and <a href="http://www.mondaymorning.org/">Richard Baker</a>
+for help and equipment). Updated to work with gcc 3.2 (multi-line
+strings are now deprecated). Fixed for RH 7.3. 
+</p>
+
+	<p>
+	<b>Sun Dec  8 13:44:32 GMT 2002:</b>
+	Major API change: <code>current_pth</code> contains
+	the current thread. A lot of functions which took
+	<code>pth</code> as a parameter now no longer need
+	these parameter. Fixed <code>io_popen</code> to
+	call <code>_exit</code> instead of <code>exit</code>
+	so that the registered <code>atexit</code> functions
+	aren't called incorrectly in the child process.
+	Fixed <code>pth_wait_writable</code>, <code>pth_wait_readable</code>.
+	Updated to use <a href="../makeplus/">make+</a>.
+	Enabled debugging and optimisations.
+	Fixes to compile on RH 7.3.
+	</p>
+
+	<p>
+	<b>Mon Nov 25 09:31:37 GMT 2002:</b>
+	Added symbols file for full symbol resolution in monolith.
+	Catch segfaults and dump a stack trace.
+	Added <code>mutex_nr_sleepers</code> function.
+	</p>
+
+	<p>
+	<b>Sun Nov 17 23:31:32 GMT 2002:</b> Debian packages. Added MSP
+	files. Added patches to enabled chunked encoding (thanks to
+	Steve Atkins). Fixes to compile on RH 7.3. Support for
+	<code>DBI_TIMESTAMP</code>, <code>DBI_INTERVAL</code>,
+	<code>DBI_INT_OR_NULL</code>, <code>DBI_CHAR</code>,
+	<code>DBI_BOOL</code> in the
+	DBI library. Better handling of NULLs in the DBI library.
+	Debugging for DBI.
+	</p>
+
+    <p>
+      <b>Thu Nov 14 15:33:29 GMT 2002:</b> Major checkpoint release
+      for Monolith.
+    </p>
+
+    <p>
+      <b>Sun Oct 20 14:46:46 BST 2002:</b> Support for cookies.
+      Get last serial number from an <code>INSERT</code>.
+      DBI now correctly handles nulls in execute statements.
+      Fixed elusive bugs in <code>pth_wait_readable</code> and
+      <code>pth_wait_writable</code> which were causing monolith
+      to crash. Optimisation to wait queues which also removes
+      a crashing bug in monolith.
+    </p>
+
+    <p>
+      <b>Tue Oct 15 23:40:42 BST 2002:</b> Multiple bug fixes.
+    </p>
+
+    <p>
+      <b>Sun Oct 13 18:47:41 BST 2002:</b> Patch to
+      disable test_dbi code if no DBI configured.
+      Added <code>pthr_server_default_address</code>
+      and <code>pthr_server_address_option</code> which
+      allows the server to listen on a single interface
+      instead of on <code>INADDR_ANY</code>.
+      (Both patches thanks to Steve Atkins - steve at blighty com).
+    </p>
+
+    <p>
+      <b>Sun Oct 13 12:55:08 BST 2002:</b> Added a
+      complete PostgreSQL database interface library,
+      similar to the Perl DBI. See <code>src/test_dbi.c</code>
+      for example usage. This requires 
+      <a href="../c2lib/">c2lib &gt;= 1.2.21</a>.
+    </p>
+
+    <p>
+      <b>Wed Oct  9 19:10:38 BST 2002:</b> Added
+      <code>http_request_set_url</code> method which
+      is used by <a href="../rws/">rws</a> to update
+      the URL during internal rewrites.
+    </p>
+
+    <p>
+      <b>Sat Sep  7 15:38:33 BST 2002:</b> Packages are now
+      available as i686 binary RPMs and source RPMs.
+    </p>
+
+    <h2>Old news and old versions</h2>
+
+    <p>
+      <b>Sat Aug 31 14:53:52 BST 2002</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-3.0.4.tar.gz">pthrlib-3.0.4.tar.gz</a>
+      released. This contains a complete tutorial and some
+      documentation fixes.
+    </p>
+
+    <p>
+      <b>Fri Aug 23 15:00:51 BST 2002</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-3.0.3.tar.gz">pthrlib-3.0.3.tar.gz</a>
+      released. This adds the <code>copy_cgi</code> and
+      <code>cgi_erase</code> functions required by
+      <a href="../monolith/">monolith</a>.
+    </p>
+
+    <p>
+      <b>Thu Aug 22 13:20:32 BST 2002</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-3.0.2.tar.gz">pthrlib-3.0.2.tar.gz</a>
+      released.
+      This includes manual pages which were accidentally omitted
+      from the previous version.
+    </p>
+
+    <p>
+      <b>Wed Aug 21 14:20:12 BST 2002</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-3.0.1.tar.gz">pthrlib-3.0.1.tar.gz</a>
+      fixes a few silly bugs which stopped the new version
+      of <a href="../rws/">rws</a> from working.
+    </p>
+
+    <p>
+      <b>Wed Aug 21 11:59:17 BST 2002</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-3.0.0.tar.gz">pthrlib-3.0.0.tar.gz</a>
+      released.  This version replaces the old
+      <code>pthr_server_main</code> function with a newer, simpler
+      <code>pthr_server_main_loop</code> function. The
+      <code>pthr_listener</code> thread code has been modified
+      slightly to allow multiple listeners to run at the same time
+      (necessary for Fleet). This breaks a lot of old code, hence the
+      major version number increase. All the included examples
+      have been changed to support the new interface.
+    </p>
+
+    <p>
+      <b>Fri Nov 16 10:43:00 GMT 2001</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-2.2.1.tar.gz">pthrlib-2.2.1.tar.gz</a> released.
+      A few bug fixes for glibc 2.2.4. You will need to use this
+      version if you are using Red Hat Linux 7.x.
+    </p>
+
+    <p>
+      <b>Mon Jul  9 07:43:07 BST 2001</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-2.2.0.tar.gz">pthrlib-2.2.0.tar.gz</a> released.
+      Added an FTP client library.
+    </p>
+
+    <p>
+      <b>Fri Jun 15 15:46:10 BST 2001</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-2.1.6.tar.gz">pthrlib-2.1.6.tar.gz</a> released.
+      Stack support improved: stack overflows cause core dumps
+      rather than random memory corruption; stacks are
+      stored in memory mapped regions so they don't take memory
+      unless you actually use them; stack size is configurable
+      at run time. HTTP library uses
+      exceptions for error messages.
+      Support for profiling. Added a second example webserver.
+      Tests for exception handling code. Added API call to
+      allow you to count the number of threads running.
+      Documentation updates.
+    <p>
+
+      <b>Wed May 30 13:01:46 BST 2001</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-2.1.0.tar.gz">pthrlib-2.1.0.tar.gz</a> released.
+      This has experimental support for throw/catch-style exception
+      handling. Please see the <code>pth_die(3)</code> and
+      <code>pth_catch(3)</code> manual pages for full details.
+    </p>
+
+    <p>
+      <b>Tue May 22 14:11:21 BST 2001</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-2.0.5.tar.gz">pthrlib-2.0.5.tar.gz</a> released.
+      Backed out previous URL-escaping patch. The fix goes better
+      into <a href="../rws/">rws</a> instead.
+    </p>
+
+    <p>
+      <b>Tue May 22 11:37:10 BST 2001</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-2.0.4.tar.gz">pthrlib-2.0.4.tar.gz</a> released.
+      URLs are now unescaped properly, allowing clients to correctly
+      request URLs like '/%7Euser/'.
+    </p>
+
+    <p>
+      <b>Tue Apr 10 16:04:41 BST 2001</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-2.0.2.tar.gz">pthrlib-2.0.2.tar.gz</a> released.
+      Added support for generating logfiles.
+    </p>
+
+    <p>
+      <b>Mon Apr  9 17:23:59 BST 2001</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-2.0.1.tar.gz">pthrlib-2.0.1.tar.gz</a> released.
+      The <i>http</i> library component in version 1.x has
+      been split more logically to support only the mechanics
+      of parsing HTTP connections. The CGI part of it (eg.
+      query string parsing, etc.) has been moved into a
+      new library called <i>cgi</i>. This necessarily breaks
+      older programs, hence the major version number
+      increase. There are some other minor changes and
+      bug fixes: the server name string can now be
+      changed; CGI.pm-like POST_MAX can be set; fixed
+      a really nasty bug in <i>iolib</i> -- it wasn't
+      setting the output buffering mode to the correct
+      default; fixed <code>io_popen(3)</code> so it can
+      handle the case where fds 0 and/or 1 are already
+      closed; added <code>io_copy(3)</code> function to
+      copy bytes between two file descriptors;
+      <code>pthr_server_main</code> now includes <code>sys/types.h</code>
+      correctly.
+    </p>
+
+    <p>
+      <b>Mon Mar 26 13:05:42 BST 2001</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-1.6.6.tar.gz">pthrlib-1.6.6.tar.gz</a> released.
+      Add <code>-lm</code> when linking with c2lib libraries.
+      Documentation fixes.
+    </p>
+
+    <p>
+      <b>Mon Mar 12 12:12:49 GMT 2001</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-1.6.5.tar.gz">pthrlib-1.6.5.tar.gz</a> released.
+      This fixes a bug in the way the library was calling
+      <code>pstrcat</code> (in <a href="../c2lib/">c2lib</a>).
+      Upgrading is highly recommended. You will also need
+      to upgrade to the latest <a href="../c2lib/">c2lib</a>.
+    </p>
+
+
+    <p>
+      <b>Fri Mar  9 17:32:13 GMT 2001</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-1.6.4.tar.gz">pthrlib-1.6.4.tar.gz</a> released.
+      Unit test suite added which covers much of the functionality.
+      Fixed a nasty bug in <tt>io_popen</tt>. Fixed another nasty
+      bug in the pseudothread code. Fixed a false assertion in
+      the rwlock code (revealed during unit testing).
+    </p>
+
+    <p>
+      <b>Fri Feb 23 16:37:58 GMT 2001</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-1.6.2.tar.gz">pthrlib-1.6.2.tar.gz</a> released.
+      <tt>pth_timeout</tt> function added and a nasty race condition
+      in the reactor (which affected wait queues) fixed.
+    </p>
+
+    <p>
+      <b>Fri Feb 16 18:02:46 GMT 2001</b>
+    </p>
+
+    <p>
+      <a href="pthrlib-1.6.1.tar.gz">pthrlib-1.6.1.tar.gz</a> released.
+      All functions are documented in manual pages.
+    </p>
+
+<% include page_footer.msp %>
+endef
+
+upload_website:
+	scp $(PACKAGE)-$(VERSION).tar.gz $(PACKAGE)-$(VERSION)-1.*.rpm \
+	$(PACKAGE)-$(VERSION).bin.tar.gz \
+	10.0.0.248:annexia.org/freeware/$(PACKAGE)/
+	scp index.html \
+	10.0.0.248:annexia.org/freeware/$(PACKAGE)/index.msp
+
+.PHONY:	build configure test upload_website

@@ -1,0 +1,29 @@
+Notes on the OpenBSD port
+-------------------------
+
+You need the gcc toolchain, GNU make, postgresql, pcre installed.
+
+OpenBSD has a serious bug in the order constructors in shared libraries
+are called. It calls them in, essentially, a random order, instead of
+in dependency-order. See the following newsgroup article:
+
+http://groups.google.com/groups?selm=b049u2%24227u%241%40FreeBSD.csie.NCTU.edu.tw&oe=UTF-8&output=gplain
+
+I have added some grotesque hacks to work around this problem.
+
+For pthr_context.c, I found the contents of jmp_buf by examination
+in gdb. jmp_buf is an array of 10 longs with the following layout:
+
+	offset	contents
+	0	PC (return address)
+	1	ebx
+	2	SP (stack pointer)
+	3	ebp
+	4	esi
+	5	edi
+	6	?
+	7	?
+	8	?
+	9	?
+
+Rich 2003/01/26

@@ -1,0 +1,112 @@
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta name="Content-Style" content="text/css">
+<title>pth_accept</title>
+</head>
+<body>
+
+<h1 align=center>pth_accept</h1>
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#AUTHOR">AUTHOR</a><br>
+<a href="#LICENSE">LICENSE</a><br>
+<a href="#VERSION">VERSION</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+
+<hr>
+<!-- Creator     : groff version 1.17.2 -->
+<!-- CreationDate: Fri Aug 30 16:16:36 2002 -->
+<a name="NAME"></a>
+<h2>NAME</h2>
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+pth_accept, pth_connect, pth_read, pth_write, pth_sleep, pth_millisleep, pth_nanosleep, pth_timeout - pseudothread system calls</td></table>
+<a name="SYNOPSIS"></a>
+<h2>SYNOPSIS</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<pre><b>#include &lt;pthr_pseudothread.h&gt;
+
+int pth_accept (pseudothread, int, struct sockaddr *, int *);
+int pth_connect (pseudothread, int, struct sockaddr *, int);
+ssize_t pth_read (pseudothread, int, void *, size_t);
+ssize_t pth_write (pseudothread, int, const void *, size_t);
+int pth_sleep (pseudothread, int seconds);
+int pth_millisleep (pseudothread, int millis);
+int pth_nanosleep (pseudothread, const struct timespec *req, struct timespec *rem);
+void pth_timeout (pseudothread, int seconds);
+</b></pre></td></table>
+<a name="DESCRIPTION"></a>
+<h2>DESCRIPTION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_accept</b>, <b>pth_connect</b>, <b>pth_read</b>,
+<b>pth_write</b>, <b>pth_sleep</b> and <b>pth_nanosleep</b>
+behave just like the corresponding system calls. However
+these calls handle non-blocking sockets and cause the thread
+to sleep on the reactor if it would block. For general I/O
+you will probably wish to wrap up your sockets in I/O handle
+objects, which give you a higher-level buffered interface to
+sockets (see <b>io_fdopen(3)</b>).</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_millisleep</b> sleeps for a given number of
+milliseconds.</td></table>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_timeout</b> is similar to the <b>alarm(2)</b> system
+call: it registers a timeout (in seconds). The thread will
+exit automatically (even in the middle of a system call) if
+the timeout is reached. To reset the timeout, call
+<b>pth_timeout</b> with a timeout of 0.</td></table>
+<a name="AUTHOR"></a>
+<h2>AUTHOR</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+Richard Jones &lt;rich@annexia.org&gt;</td></table>
+<a name="LICENSE"></a>
+<h2>LICENSE</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+GNU LGPL (see http://www.gnu.org/)</td></table>
+<a name="VERSION"></a>
+<h2>VERSION</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+pthrlib-3.0.3</td></table>
+<a name="SEE ALSO"></a>
+<h2>SEE ALSO</h2>
+
+<table width="100%" border=0 rules="none" frame="void"
+       cols="2" cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="10%"></td><td width="90%">
+<b>pth_poll(3)</b>, <b>pth_select(3)</b>.</td></table>
+<hr>
+</body>
+</html>
